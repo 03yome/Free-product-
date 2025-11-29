@@ -1,0 +1,245 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Get necessary Roblox services
+local MarketplaceService = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+-- Configuration for the Rayfield window
+local windowConfig = {
+    Name = "All fling.2 | Free product",
+    LoadingTitle = "Deobfuscated by FlowerPot :3",
+    LoadingSubtitle = "Deobfuscated by FlowerPot :33 | @Flowerpot",
+    ConfigurationSaving = {
+        Enabled = true,
+        FileName = "Deobfuscated Dark.cc"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "noinvitelink",
+        RememberJoins = false
+    },
+    KeySystem = false,
+    KeySettings = {
+        Title = "Deobfuscated dark.cc | Free Product",
+        Subtitle = "Key System",
+        Note = "No key.",
+        FileName = "luapro777",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = {"DENISGAY123"} -- This key is not actually used since KeySystem is false
+    }
+}
+
+-- Create the main window and initial notification
+local Window = Rayfield:CreateWindow(windowConfig)
+Rayfield:Notify({
+    Title = "Success",
+    Content = "Loaded for 6.5 Seconds.",
+    Duration = 6.5,
+    Image = 4483362458,
+    Actions = {
+        Ignore = {
+            Name = "Okay!",
+            Callback = function()
+                print("⚡⚡⚡")
+            end
+        }
+    }
+})
+
+-- Create the main tab in the window
+local MainTab = Window:CreateTab("Main", 4483362458)
+
+-- Variables to store game pass data
+local selectedGamePass = nil
+local gamePassesList = {}
+
+-- Function to fetch all developer products (game passes) for the current game
+local function GetGamePasses()
+    gamePassesList = {} -- Clear the existing list
+    
+    -- Safely call the API to get developer products
+    local success, productsPage = pcall(function()
+        return MarketplaceService:GetDeveloperProductsAsync()
+    end)
+
+    if success then
+        -- Iterate through the products and store their info
+        for _, productInfo in pairs(productsPage:GetCurrentPage()) do
+            table.insert(gamePassesList, {
+                Name = productInfo.Name,
+                ID = productInfo.ProductId,
+                Description = productInfo.Description,
+                Price = productInfo.PriceInRobux
+            })
+        end
+    else
+        warn("Failed to fetch game passes:", productsPage)
+    end
+    
+    -- Create a list of names for the dropdown
+    local passNames = {}
+    for _, pass in ipairs(gamePassesList) do
+        table.insert(passNames, pass.Name)
+    end
+    
+    -- If no passes are found, add a placeholder
+    if #passNames == 0 then
+        table.insert(passNames, "No GamePasses Found")
+    end
+    
+    return passNames
+end
+
+-- Function to simulate a game pass purchase
+-- NOTE: This uses a developer-only function and will likely not work in a normal client.
+local function PurchaseGamePass(gamePassId)
+    local success, message = pcall(function()
+        MarketplaceService:SignalPromptProductPurchaseFinished(localPlayer.UserId, gamePassId, true)
+        return true
+    end)
+    return success, message
+end
+
+-- Function to attempt purchasing all available game passes
+local function PurchaseAllGamePasses()
+    GetGamePasses() -- Refresh the list first
+    local results = {}
+    
+    for _, gamePass in ipairs(gamePassesList) do
+        local success, message = PurchaseGamePass(gamePass.ID)
+        table.insert(results, {
+            Name = gamePass.Name,
+            Success = success,
+            Message = message
+        })
+        wait(0.5) -- Add a small delay between purchases
+    end
+    
+    return results
+end
+
+-- Create the dropdown menu for selecting a game pass
+local Dropdown = MainTab:CreateDropdown({
+    Name = "Select GamePass",
+    Options = GetGamePasses(),
+    CurrentOption = {"Select a GamePass"},
+    MultipleOptions = false,
+    Flag = "Dropdown1",
+    Callback = function(Option)
+        selectedGamePass = Option[1]
+        -- Find the full game pass info table from the selected name
+        for _, pass in ipairs(gamePassesList) do
+            if pass.Name == selectedGamePass then
+                selectedGamePass = pass
+                break
+            end
+        end
+    end
+})
+
+-- Create the "Buy Selected" button
+local BuyButton = MainTab:CreateButton({
+    Name = "Buy Selected GamePass",
+    Callback = function()
+        -- Validate that a valid game pass is selected
+        if not selectedGamePass or type(selectedGamePass) == "string" then
+            Rayfield:Notify({Title = "Error", Content = "Please select a valid GamePass first!", Duration = 3, Image = 4483362458})
+            return
+        end
+        
+        Rayfield:Notify({Title = "Purchasing...", Content = "Buying: " .. selectedGamePass.Name, Duration = 2, Image = 4483362458})
+        
+        local success, message = PurchaseGamePass(selectedGamePass.ID)
+        
+        if success then
+            Rayfield:Notify({Title = "Success!", Content = "Purchased: " .. selectedGamePass.Name, Duration = 5, Image = 4483362458})
+        else
+            Rayfield:Notify({Title = "Error", Content = "Failed to purchase: " .. selectedGamePass.Name .. "\n" .. tostring(message), Duration = 5, Image = 4483362458})
+        end
+    end
+})
+
+-- Create the "Buy All" button
+local BuyAllButton = MainTab:CreateButton({
+    Name = "Buy All GamePasses",
+    Callback = function()
+        Rayfield:Notify({Title = "Processing...", Content = "Purchasing all available game passes", Duration = 3, Image = 4483362458})
+        
+        local results = PurchaseAllGamePasses()
+        local successCount = 0
+        local failCount = 0
+        
+        -- Count successful and failed purchases
+        for _, result in ipairs(results) do
+            if result.Success then
+                successCount = successCount + 1
+            else
+                failCount = failCount + 1
+            end
+        end
+        
+        Rayfield:Notify({
+            Title = "Purchase Complete",
+            Content = string.format("Success: %d | Failed: %d", successCount, failCount),
+            Duration = 6,
+            Image = 4483362458
+        })
+    end
+})
+
+-- Create the "Refresh" button
+local RefreshButton = MainTab:CreateButton({
+    Name = "Refresh GamePass List",
+    Callback = function()
+        local newGamePasses = GetGamePasses()
+        Dropdown:SetOptions(newGamePasses)
+        Rayfield:Notify({
+            Title = "Refreshed",
+            Content = "Found " .. (#newGamePasses > 0 and #newGamePasses or "0") .. " GamePasses",
+            Duration = 3,
+            Image = 4483362458
+        })
+    end
+})
+
+-- Create the "Copy ID" button
+local CopyIdButton = MainTab:CreateButton({
+    Name = "Copy Selected GamePass ID",
+    Callback = function()
+        if not selectedGamePass or type(selectedGamePass) == "string" then
+            Rayfield:Notify({Title = "Error", Content = "Please select a GamePass first!", Duration = 3, Image = 4483362458})
+            return
+        end
+        
+        if setclipboard then
+            setclipboard(tostring(selectedGamePass.ID))
+            Rayfield:Notify({Title = "Copied!", Content = "GamePass ID copied to clipboard: " .. selectedGamePass.ID, Duration = 4, Image = 4483362458})
+        else
+            Rayfield:Notify({Title = "Error", Content = "Clipboard function not available", Duration = 3, Image = 4483362458})
+        end
+    end
+})
+
+-- Create a section and label to display game pass information
+local Section = MainTab:CreateSection("GamePass Information")
+local InfoLabel = MainTab:CreateLabel("Select a GamePass to view information")
+
+-- Loop to continuously update the information label
+while true do
+    if selectedGamePass and type(selectedGamePass) == "table" then
+        InfoLabel:Set(
+            "Name: " .. selectedGamePass.Name ..
+            "\nID: " .. selectedGamePass.ID ..
+            "\nPrice: " .. selectedGamePass.Price .. " Robux" ..
+            "\nDescription: " .. selectedGamePass.Description
+        )
+    else
+        InfoLabel:Set("Select a GamePass to view information")
+    end
+    wait(1)
+end
